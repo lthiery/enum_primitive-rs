@@ -1,7 +1,30 @@
 // copied from https://github.com/andersk/enum_primitive-rs which did not with with nostd out of box
 #![no_std]
-extern crate num_traits;
-pub use num_traits::FromPrimitive;
+pub mod cast;
+
+/// Helper macro for internal use by `enum_to_primitive!`.
+#[macro_export]
+macro_rules! enum_to_primitive_impl_ty {
+    ($meth:ident, $ty:ty, $name:ident) => {
+        #[allow(non_upper_case_globals, unused)]
+        fn $meth(&self) -> Option<$ty> {
+            let copy: $name = unsafe { ::core::mem::transmute_copy(self) };
+            Some(copy as $ty)
+        }
+    };
+}
+
+// /// Helper macro for internal use by `enum_to_primitive!`.
+// #[macro_export]
+// #[macro_use(enum_to_primitive_impl_ty)]
+// macro_rules! enum_to_primitive_impl {
+//     ($name:ident) => {
+//         impl $crate::ToPrimitive for $name {
+//             enum_to_primitive_impl_ty! { to_i64, i64, $name }
+//             enum_to_primitive_impl_ty! { to_u64, u64, $name }
+//         }
+//     };
+// }
 
 /// Helper macro for internal use by `enum_from_primitive!`.
 #[macro_export]
@@ -20,21 +43,24 @@ macro_rules! enum_from_primitive_impl_ty {
 
 /// Helper macro for internal use by `enum_from_primitive!`.
 #[macro_export]
-#[macro_use(enum_from_primitive_impl_ty)]
 macro_rules! enum_from_primitive_impl {
     ($name:ident, $( $variant:ident )*) => {
         impl FromPrimitive for $name {
-            enum_from_primitive_impl_ty! { from_i64, i64, $name, $( $variant )* }
-            enum_from_primitive_impl_ty! { from_u64, u64, $name, $( $variant )* }
-
+            $crate::enum_from_primitive_impl_ty! { from_i64, i64, $name, $( $variant )* }
+            $crate::enum_from_primitive_impl_ty! { from_u64, u64, $name, $( $variant )* }
         }
+
+        impl ToPrimitive for $name {
+            $crate::enum_to_primitive_impl_ty! { to_i64, i64, $name }
+            $crate::enum_to_primitive_impl_ty! { to_u64, u64, $name }
+        }
+
     };
 }
 
 /// Wrap this macro around an `enum` declaration to get an
 /// automatically generated implementation of `num::FromPrimitive`.
 #[macro_export]
-#[macro_use(enum_from_primitive_impl)]
 macro_rules! enum_from_primitive {
     (
         $( #[$enum_attr:meta] )*
@@ -46,7 +72,7 @@ macro_rules! enum_from_primitive {
         enum $name {
             $( $( #[$variant_attr] )* $variant ),+ $( = $discriminator, $( $( #[$variant_two_attr] )* $variant_two ),+ )*
         }
-        enum_from_primitive_impl! { $name, $( $variant )+ $( $( $variant_two )+ )* }
+        $crate::enum_from_primitive_impl! { $name, $( $variant )+ $( $( $variant_two )+ )* }
     };
 
     (
@@ -59,7 +85,7 @@ macro_rules! enum_from_primitive {
         enum $name {
             $( $( $( #[$variant_attr] )* $variant ),+ = $discriminator ),*
         }
-        enum_from_primitive_impl! { $name, $( $( $variant )+ )* }
+        $crate::enum_from_primitive_impl! { $name, $( $( $variant )+ )* }
     };
 
     (
@@ -72,7 +98,7 @@ macro_rules! enum_from_primitive {
         enum $name {
             $( $( #[$variant_attr] )* $variant ),+ $( = $discriminator, $( $( #[$variant_two_attr] )* $variant_two ),+ )*,
         }
-        enum_from_primitive_impl! { $name, $( $variant )+ $( $( $variant_two )+ )* }
+        $crate::enum_from_primitive_impl! { $name, $( $variant )+ $( $( $variant_two )+ )* }
     };
 
     (
@@ -85,7 +111,7 @@ macro_rules! enum_from_primitive {
         enum $name {
             $( $( $( #[$variant_attr] )* $variant ),+ = $discriminator ),+,
         }
-        enum_from_primitive_impl! { $name, $( $( $variant )+ )+ }
+        $crate::enum_from_primitive_impl! { $name, $( $( $variant )+ )+ }
     };
 
     (
@@ -98,7 +124,7 @@ macro_rules! enum_from_primitive {
         pub enum $name {
             $( $( #[$variant_attr] )* $variant ),+ $( = $discriminator, $( $( #[$variant_two_attr] )* $variant_two ),+ )*
         }
-        enum_from_primitive_impl! { $name, $( $variant )+ $( $( $variant_two )+ )* }
+        $crate::enum_from_primitive_impl! { $name, $( $variant )+ $( $( $variant_two )+ )* }
     };
 
     (
@@ -111,7 +137,7 @@ macro_rules! enum_from_primitive {
         pub enum $name {
             $( $( $( #[$variant_attr] )* $variant ),+ = $discriminator ),*
         }
-        enum_from_primitive_impl! { $name, $( $( $variant )+ )* }
+        $crate::enum_from_primitive_impl! { $name, $( $( $variant )+ )* }
     };
 
     (
@@ -124,7 +150,7 @@ macro_rules! enum_from_primitive {
         pub enum $name {
             $( $( #[$variant_attr] )* $variant ),+ $( = $discriminator, $( $( #[$variant_two_attr] )* $variant_two ),+ )*,
         }
-        enum_from_primitive_impl! { $name, $( $variant )+ $( $( $variant_two )+ )* }
+        $crate::enum_from_primitive_impl! { $name, $( $variant )+ $( $( $variant_two )+ )* }
     };
 
     (
@@ -137,6 +163,6 @@ macro_rules! enum_from_primitive {
         pub enum $name {
             $( $( $( #[$variant_attr] )* $variant ),+ = $discriminator ),+,
         }
-        enum_from_primitive_impl! { $name, $( $( $variant )+ )+ }
+        $crate::enum_from_primitive_impl! { $name, $( $( $variant )+ )+ }
     };
 }
